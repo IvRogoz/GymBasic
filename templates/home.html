@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}Home{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column justify-content-center align-items-center vh-100 text-center">
+    <h1 class="mb-4">Welcome to Food Logger</h1>
+    <p class="lead mb-4">Log your food intake easily by scanning barcodes or manually entering details.</p>
+
+    <div>
+        <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg mb-3 w-100" style="max-width: 300px;">Login</a>
+        <a href="{{ url_for('register') }}" class="btn btn-secondary btn-lg w-100" style="max-width: 300px;">Register</a>
+    </div>
+</div>
+{% endblock %}

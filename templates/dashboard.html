@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<h1 class="mb-4">Welcome, {{ current_user.username }}</h1>
+
+<!-- Logout Button -->
+<a href="{{ url_for('logout') }}" class="btn btn-danger mb-4">Logout</a>
+
+<!-- Barcode Scanning Section -->
+<h3>Scan a Barcode</h3>
+<div class="mb-4">
+    <div id="scanner-container" class="mb-3 border" style="width: 100%; height: 300px;"></div>
+    <button id="start-scan" class="btn btn-primary">Start Scanning</button>
+    <p id="barcode-result" class="mt-3 text-success"></p>
+</div>
+
+<!-- Manual Entry Form -->
+<h3>Enter Food Details Manually</h3>
+<form method="POST" action="{{ url_for('manual_entry') }}" enctype="multipart/form-data" class="mb-4">
+    <div class="mb-3">
+        <label for="name" class="form-label">Food Name</label>
+        <input type="text" id="name" name="name" class="form-control" required>
+    </div>
+    <div class="mb-3">
+        <label for="ingredients" class="form-label">Ingredients</label>
+        <textarea id="ingredients" name="ingredients" class="form-control" rows="3"></textarea>
+    </div>
+    <div class="mb-3">
+        <label for="nutritional_values" class="form-label">Nutritional Values</label>
+        <textarea id="nutritional_values" name="nutritional_values" class="form-control" rows="3"></textarea>
+    </div>
+    <div class="mb-3">
+        <label for="picture" class="form-label">Upload a Picture</label>
+        <input type="file" id="picture" name="picture" class="form-control">
+    </div>
+    <button type="submit" class="btn btn-success">Save Entry</button>
+</form>
+
+<!-- Food Logs Section -->
+<h3>Your Food Logs</h3>
+<div class="list-group">
+    {% for scan in user_scans %}
+    <div class="card mb-3">
+        <div class="card-body">
+            <p class="text-muted mt-2">Logged at: {{ scan.timestamp }}</p>
+            {% if scan.scanned_data %}
+                <!-- Render scanned data -->
+                <h5 class="card-title">Product Name: {{ scan.scanned_data.product_name }}</h5>
+                <p><strong>Ingredients:</strong> {{ scan.scanned_data.ingredients }}</p>
+
+                <p><strong>Nutrition (Per 100g):</strong></p>
+                <ul>
+                    <li><strong>Energy:</strong> 
+                        {{ scan.scanned_data.nutritional_values.energy_100g }} kJ 
+                        ({{ scan.scanned_data.nutritional_values["energy-kcal_100g"] }} kcal)
+                    </li>
+                    <li><strong>Carbohydrates:</strong> 
+                        {{ scan.scanned_data.nutritional_values.carbohydrates_100g }} g
+                    </li>
+                    <li><strong>Sugars:</strong> 
+                        {{ scan.scanned_data.nutritional_values.sugars_100g }} g
+                    </li>
+                    <li><strong>Fat:</strong> 
+                        {{ scan.scanned_data.nutritional_values.fat_100g }} g
+                    </li>
+                    <li><strong>Proteins:</strong> 
+                        {{ scan.scanned_data.nutritional_values.proteins_100g }} g
+                    </li>
+                    <li><strong>Salt:</strong> 
+                        {{ scan.scanned_data.nutritional_values.salt_100g }} g
+                    </li>
+                    <li><strong>Caffeine:</strong> 
+                        {{ scan.scanned_data.nutritional_values.caffeine_100g }} g
+                    </li>
+                </ul>
+
+                <p><strong>Other Information:</strong></p>
+                <ul>
+                    <li><strong>NOVA Group:</strong> 
+                        {{ scan.scanned_data.nutritional_values["nova-group_100g"] }} (Highly Processed Food)
+                    </li>
+                    <li><strong>Nutrition Score (FR):</strong> 
+                        {{ scan.scanned_data.nutritional_values["nutrition-score-fr_100g"] }}
+                    </li>
+                </ul>
+            {% else %}
+                <!-- Render manual entry -->
+                <h5 class="card-title">Manual Entry: {{ scan.manual_name }}</h5>
+                <p><strong>Ingredients:</strong> {{ scan.manual_ingredients }}</p>
+                <p><strong>Nutritional Values:</strong> {{ scan.manual_nutritional_values }}</p>
+                {% if scan.picture_path %}
+                <img src="{{ scan.picture_path }}" alt="Uploaded Food Picture" class="img-fluid mt-3">
+                {% endif %}
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+
+<!-- Barcode Scanning Script -->
+<script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
+<script>
+    // Elements
+    const resultDisplay = document.getElementById('barcode-result');
+    const startScanButton = document.getElementById('start-scan');
+
+    // Start Scanning
+    startScanButton.addEventListener('click', () => {
+        Quagga.init({
+            inputStream: {
+                name: "Live",
+                type: "LiveStream",
+                target: document.querySelector('#scanner-container'), // Video element
+            },
+            decoder: {
+                readers: ["ean_reader"] // Supports EAN-13 barcodes
+            }
+        }, (err) => {
+            if (err) {
+                console.error(err);
+                return;
+            }
+            Quagga.start();
+        });
+
+        // Handle Detected Barcode
+        Quagga.onDetected((data) => {
+            const barcode = data.codeResult.code;
+            resultDisplay.textContent = `Scanned Barcode: ${barcode}`;
+
+            // Send barcode to the server
+            fetch('/scan', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ barcode })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        alert(data.error);
+                        return;
+                    }
+                    alert(`Product Logged: ${data.product_name}`);
+                })
+                .catch(err => console.error(err));
+        });
+    });
+</script>
+{% endblock %}

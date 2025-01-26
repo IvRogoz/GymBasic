@@ -1,0 +1,7 @@
+Run the following in your Flask shell:
+
+flask shell
+
+Then execute:
+from app import create_superuser
+create_superuser("admin", "admin@example.com", "securepassword")

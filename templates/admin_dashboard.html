@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Admin Dashboard</h1>
+
+    <a href="{{ url_for('logout') }}" class="btn btn-danger mb-4">Logout</a>
+
+    {% for username, logs in grouped_logs.items() %}
+        <h3 class="mt-4">User: {{ username }}</h3>
+        <table class="table table-striped table-bordered">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Product Name</th>
+                    <th>Ingredients</th>
+                    <th>Nutrition</th>
+                    <th>Picture</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                    <tr>
+                        <!-- Timestamp -->
+                        <td>{{ log.timestamp.strftime("%Y-%m-%d %H:%M:%S") }}</td>
+
+                        <!-- Product Name -->
+                        <td>
+                            {% if log.scanned_data %}
+                                {{ log.scanned_data.product_name }}
+                            {% else %}
+                                {{ log.manual_name or "Manual Entry (Unnamed)" }}
+                            {% endif %}
+                        </td>
+
+                        <!-- Ingredients -->
+                        <td>
+                            {% if log.scanned_data %}
+                                {{ log.scanned_data.ingredients }}
+                            {% else %}
+                                {{ log.manual_ingredients or "N/A" }}
+                            {% endif %}
+                        </td>
+
+                        <!-- Nutrition -->
+                        <td>
+                            {% if log.scanned_data and log.scanned_data.nutritional_values %}
+                                {% set nutrition = log.scanned_data.nutritional_values %}
+                                Energy: {{ nutrition.get('energy_100g', 'N/A') }} kJ,
+                                Carbs: {{ nutrition.get('carbohydrates_100g', 'N/A') }} g,
+                                Sugars: {{ nutrition.get('sugars_100g', 'N/A') }} g,
+                                Fat: {{ nutrition.get('fat_100g', 'N/A') }} g,
+                                Proteins: {{ nutrition.get('proteins_100g', 'N/A') }} g,
+                                Salt: {{ nutrition.get('salt_100g', 'N/A') }} g
+                            {% elif log.manual_nutritional_values %}
+                                {{ log.manual_nutritional_values }}
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+
+                        <!-- Picture -->
+                        <td>
+                            {% if log.picture_path %}
+                                <img src="{{ log.picture_path }}" alt="Uploaded Picture" class="img-thumbnail" style="max-width: 100px;">
+                            {% else %}
+                                N/A
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endfor %}
+</div>
+{% endblock %}
