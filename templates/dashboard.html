@@ -5,10 +5,6 @@
 {% block content %}
 <h1 class="mb-4">Welcome, {{ current_user.username }}</h1>
 
-<!-- Logout Button -->
-<a href="{{ url_for('logout') }}" class="btn btn-danger mb-4">Logout</a>
-
-<!-- Mode Toggle -->
 <ul class="nav nav-tabs mb-4" id="entryTabs">
     <li class="nav-item">
         <a class="nav-link active" id="scan-tab" data-bs-toggle="tab" href="#scan">Scan Barcode</a>
@@ -18,175 +14,222 @@
     </li>
 </ul>
 
-<!-- Tab Content -->
 <div class="tab-content">
-    <!-- Barcode Scanning Mode -->
+    <!-- Scan Barcode Tab -->
     <div class="tab-pane fade show active" id="scan">
-        <h3>Scan a Barcode</h3>
-        <div class="mb-4">
-            <div id="scanner-container" class="border rounded mb-3" style="width: 100%; height: 500px;"></div>
-            <button id="toggle-scan" class="btn btn-primary">Start Scanning</button>
+        <div class="card p-4">
+            <h3>Scan or Capture</h3>
+            <div id="scanner-container" class="mb-3 position-relative">
+                <video id="scanner-video" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;"></video>
+                <canvas id="scanner-canvas" style="display: none;"></canvas>
+                <div class="overlay-text text-center w-100 position-absolute top-50 translate-middle-y text-white" style="background: rgba(0,0,0,0.5); padding: 10px;">
+                    Scanning for barcodes... Tap to capture photo manually
+                </div>
+            </div>
             <p id="barcode-result" class="mt-3 text-success"></p>
             <div id="scanned-product-details" class="mt-3"></div>
         </div>
     </div>
 
-    <!-- Manual Entry Mode -->
+    <!-- Manual Entry Tab -->
     <div class="tab-pane fade" id="manual">
-        <h3>Enter Food Details Manually</h3>
-        <form method="POST" action="{{ url_for('manual_entry') }}" enctype="multipart/form-data" class="mb-4">
-            <div class="mb-3">
-                <label for="name" class="form-label">Food Name</label>
-                <input type="text" id="name" name="name" class="form-control" required>
-            </div>
-            <div class="mb-3">
-                <label for="ingredients" class="form-label">Ingredients</label>
-                <textarea id="ingredients" name="ingredients" class="form-control" rows="3"></textarea>
-            </div>
-            <div class="mb-3">
-                <label for="nutritional_values" class="form-label">Nutritional Values</label>
-                <textarea id="nutritional_values" name="nutritional_values" class="form-control" rows="3"></textarea>
-            </div>
-            <div class="mb-3">
-                <label for="picture" class="form-label">Upload a Picture</label>
-                <input type="file" id="picture" name="picture" class="form-control">
-            </div>
-            <button type="submit" class="btn btn-success">Save Entry</button>
-        </form>
+        <div class="card p-4">
+            <h3>Enter Food Details Manually</h3>
+            <form method="POST" action="{{ url_for('manual_entry') }}" enctype="multipart/form-data">
+                <div class="mb-3">
+                    <label for="name" class="form-label">Food Name</label>
+                    <input type="text" id="name" name="name" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                    <label for="ingredients" class="form-label">Ingredients</label>
+                    <textarea id="ingredients" name="ingredients" class="form-control" rows="3"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label for="nutritional_values" class="form-label">Nutritional Values (e.g., {'energy_100g': 500})</label>
+                    <textarea id="nutritional_values" name="nutritional_values" class="form-control" rows="3"></textarea>
+                </div>
+                <div class="mb-3">
+                    <label for="picture" class="form-label">Upload a Picture</label>
+                    <input type="file" id="picture" name="picture" class="form-control">
+                </div>
+                <button type="submit" class="btn btn-success w-100">Save Entry</button>
+            </form>
+        </div>
     </div>
 </div>
 
-<!-- Food Log Table -->
-<h3>Your Food Log</h3>
-<table class="table table-striped table-hover">
-    <thead class="table-dark">
-        <tr>
-            <th>Timestamp</th>
-            <th>Product Name</th>
-            <th>Ingredients</th>
-            <th>Nutrition (Per 100g)</th>
-        </tr>
-    </thead>
-    <tbody>
-        {% for scan in user_scans %}
-        <tr>
-            <td>{{ scan.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+<h3 class="mt-5">Your Food Log</h3>
+<div class="table-responsive">
+    <table class="table table-striped table-hover">
+        <thead class="table-dark">
+            <tr>
+                <th>Timestamp</th>
+                <th>Product Name</th>
+                <th>Ingredients</th>
+                <th>Nutrition (Per 100g)</th>
+                <th>Picture</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for scan in user_scans %}
+            <tr>
+                <td>{{ scan.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                <td>{{ scan.scanned_data.product_name if scan.scanned_data else scan.manual_name }}</td>
+                <td>{{ scan.scanned_data.ingredients if scan.scanned_data else scan.manual_ingredients }}</td>
+                {% set nutrition = scan.nutritional_values_decoded if scan.scanned_data else {} %}
+                <td>
+                    <ul class="list-unstyled mb-0">
+                        <li><strong>Energy:</strong> {{ nutrition.get('energy_100g', 'N/A') }} kJ</li>
+                        <li><strong>Carbs:</strong> {{ nutrition.get('carbohydrates_100g', 'N/A') }} g</li>
+                        <li><strong>Sugars:</strong> {{ nutrition.get('sugars_100g', 'N/A') }} g</li>
+                        <li><strong>Fat:</strong> {{ nutrition.get('fat_100g', 'N/A') }} g</li>
+                        <li><strong>Proteins:</strong> {{ nutrition.get('proteins_100g', 'N/A') }} g</li>
+                        <li><strong>Salt:</strong> {{ nutrition.get('salt_100g', 'N/A') }} g</li>
+                    </ul>
+                </td>
+                <td>
+                    {% if scan.picture_path %}
+                        <img src="{{ url_for('uploaded_file', filename=scan.picture_path) }}" alt="Photo" class="img-thumbnail" style="max-width: 100px;">
+                    {% else %}
+                        N/A
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 
-            <td>{{ scan.scanned_data.product_name if scan.scanned_data else scan.manual_name }}</td>
-            <td>{{ scan.scanned_data.ingredients if scan.scanned_data else scan.manual_ingredients }}</td>
-            {% set nutrition = scan.scanned_data.nutritional_values if scan.scanned_data else {} %}
-            <td>
-                <ul class="list-unstyled mb-0">
-                    <li><strong>Energy:</strong> {{ nutrition.get('energy_100g', 'N/A') }} kJ</li>
-                    <li><strong>Carbohydrates:</strong> {{ nutrition.get('carbohydrates_100g', 'N/A') }} g</li>
-                    <li><strong>Sugars:</strong> {{ nutrition.get('sugars_100g', 'N/A') }} g</li>
-                    <li><strong>Fat:</strong> {{ nutrition.get('fat_100g', 'N/A') }} g</li>
-                    <li><strong>Proteins:</strong> {{ nutrition.get('proteins_100g', 'N/A') }} g</li>
-                    <li><strong>Salt:</strong> {{ nutrition.get('salt_100g', 'N/A') }} g</li>
-                </ul>
-            </td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
-
-<!-- Quagga Barcode Scanning Script -->
 <script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
 <script>
+    const scannerContainer = document.getElementById("scanner-container");
+    const video = document.getElementById("scanner-video");
+    const canvas = document.getElementById("scanner-canvas");
+    const ctx = canvas.getContext("2d");
     const resultDisplay = document.getElementById("barcode-result");
-    const toggleScanButton = document.getElementById("toggle-scan");
     const productDetailsDisplay = document.getElementById("scanned-product-details");
-    let isScanning = false;
-    let lastScannedBarcode = "";  // Stores the last scanned barcode
+    let isProcessing = false;
 
-    const initScanner = () => {
-        Quagga.init(
-            {
-                inputStream: { name: "Live", type: "LiveStream", target: document.querySelector("#scanner-container") },
-                decoder: { readers: ["ean_reader"] },
-            },
-            (err) => { 
-                if (err) { 
-                    console.error("Scanner init failed:", err); 
-                    return; 
-                } 
-                Quagga.start();
+    function setupCamera() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            alert("Your browser does not support camera access.");
+            return;
+        }
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } } })
+            .then(stream => {
+                video.srcObject = stream;
+                video.play();
+                video.addEventListener('loadedmetadata', () => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    console.log("Camera initialized. Dimensions:", video.videoWidth, video.videoHeight);
+                    startScanner();
+                });
+            })
+            .catch(err => {
+                console.error("Camera error:", err.name, err.message);
+                alert("Failed to access camera: " + (err.name === "NotAllowedError" ? "Permission denied." : err.message));
+            });
+    }
+
+    function stopCamera() {
+        if (video.srcObject) {
+            video.srcObject.getTracks().forEach(track => track.stop());
+            video.srcObject = null;
+        }
+        Quagga.stop();
+    }
+
+    function capturePhoto(manual = false, barcode = null) {
+        if (!video.srcObject || isProcessing) return;
+        isProcessing = true;
+        console.log("Capturing photo. Manual:", manual, "Barcode:", barcode);
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob(blob => {
+            const formData = new FormData();
+            formData.append("photo", blob, barcode ? `barcode_${barcode}.jpg` : "manual.jpg");
+            if (barcode && !manual) {
+                formData.append("barcode", barcode);
             }
-        );
-
-        Quagga.onDetected((data) => {
-            const barcode = data.codeResult.code;
-
-            // ✅ Prevent duplicate scans
-            if (barcode === lastScannedBarcode) {
-                console.log(`Duplicate scan ignored: ${barcode}`);
-                return;
-            }
-            
-            lastScannedBarcode = barcode;  // Store last scanned barcode
-            resultDisplay.textContent = `Scanned Barcode: ${barcode}`;
-
-            // Fetch product details from the server
             fetch("/scan", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ barcode }),
+                body: formData
             })
-                .then((response) => response.json())
-                .then((data) => {
-                    if (data.error) { 
-                        //alert(data.error); 
-                        return; 
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! Status: ${response.status}`);
                     }
-
-                    // Display product details
-                    const productName = data.product_name || "N/A";
-                    const ingredients = data.ingredients || "N/A";
-                    const nutrition = data.nutrition || {};
-
-                    productDetailsDisplay.innerHTML = `
-                        <h4>Scanned Product Details</h4>
-                        <p><strong>Product Name:</strong> ${productName}</p>
-                        <p><strong>Ingredients:</strong> ${ingredients}</p>
-                        <p><strong>Nutrition (Per 100g):</strong></p>
-                        <ul>
-                            <li><strong>Energy:</strong> ${nutrition.energy_100g || "N/A"} kJ</li>
-                            <li><strong>Carbohydrates:</strong> ${nutrition.carbohydrates_100g || "N/A"} g</li>
-                            <li><strong>Sugars:</strong> ${nutrition.sugars_100g || "N/A"} g</li>
-                            <li><strong>Fat:</strong> ${nutrition.fat_100g || "N/A"} g</li>
-                            <li><strong>Proteins:</strong> ${nutrition.proteins_100g || "N/A"} g</li>
-                            <li><strong>Salt:</strong> ${nutrition.salt_100g || "N/A"} g</li>
-                        </ul>
-                    `;
-
-                    // ✅ STOP SCANNING IMMEDIATELY
-                    stopScanner();
+                    return response.json();
                 })
-                .catch((err) => console.error(err));
+                .then(data => {
+                    console.log("Server response:", data);
+                    if (data.error) {
+                        resultDisplay.textContent = data.error;
+                    } else if (manual) {
+                        resultDisplay.textContent = "Photo captured successfully!";
+                        productDetailsDisplay.innerHTML = `<img src="${data.photo_url}" alt="Captured Photo" class="img-fluid" style="max-width: 200px;">`;
+                    } else {
+                        resultDisplay.textContent = `Detected Barcode: ${barcode}`;
+                        productDetailsDisplay.innerHTML = `
+                            <h4>Scanned Product Details</h4>
+                            <p><strong>Product Name:</strong> ${data.product_name || "N/A"}</p>
+                            <p><strong>Ingredients:</strong> ${data.ingredients || "N/A"}</p>
+                            <p><strong>Nutrition (Per 100g):</strong></p>
+                            <ul>
+                                <li><strong>Energy:</strong> ${data.nutrition.energy_100g || "N/A"} kJ</li>
+                                <li><strong>Carbs:</strong> ${data.nutrition.carbohydrates_100g || "N/A"} g</li>
+                                <li><strong>Sugars:</strong> ${data.nutrition.sugars_100g || "N/A"} g</li>
+                                <li><strong>Fat:</strong> ${data.nutrition.fat_100g || "N/A"} g</li>
+                                <li><strong>Proteins:</strong> ${data.nutrition.proteins_100g || "N/A"} g</li>
+                                <li><strong>Salt:</strong> ${data.nutrition.salt_100g || "N/A"} g</li>
+                            </ul>
+                            <img src="${data.photo_url}" alt="Captured Photo" class="img-fluid" style="max-width: 200px;">`;
+                    }
+                    isProcessing = false;
+                })
+                .catch(err => {
+                    console.error("Fetch error:", err);
+                    resultDisplay.textContent = "Error processing request";
+                    isProcessing = false;
+                });
+        }, "image/jpeg", 0.85);
+    }
+
+    function startScanner() {
+        Quagga.init({
+            inputStream: {
+                type: "LiveStream",
+                target: video,
+                constraints: { facingMode: "environment", width: 640, height: 480 }
+            },
+            decoder: { readers: ["ean_reader"] }
+        }, err => {
+            if (err) {
+                console.error("Quagga init failed:", err);
+                alert("Scanner initialization failed: " + err.message);
+                stopCamera();
+                return;
+            }
+            Quagga.start();
         });
-    };
 
-    const stopScanner = () => {
-        Quagga.stop();
-        toggleScanButton.textContent = "Start Scanning";
-        toggleScanButton.classList.replace("btn-danger", "btn-primary");
-        isScanning = false;
-        console.log("Scanner stopped.");
-        //lastScannedBarcode = "";
-    };
+        Quagga.onDetected(data => {
+            const barcode = data.codeResult.code;
+            if (!isProcessing) {
+                console.log("Barcode detected:", barcode);
+                capturePhoto(false, barcode);
+                Quagga.pause();
+                setTimeout(() => {
+                    console.log("Resuming scanner");
+                    Quagga.start();
+                }, 2000);
+            }
+        });
+    }
 
-    toggleScanButton.addEventListener("click", () => {
-        if (isScanning) {
-            stopScanner();
-        } else {
-            lastScannedBarcode = "";  // Reset last scanned barcode when restarting scan
-            initScanner();
-            toggleScanButton.textContent = "Stop Scanning";
-            toggleScanButton.classList.replace("btn-primary", "btn-danger");
-            isScanning = true;
-        }
-    });
+    window.addEventListener("load", setupCamera);
+    scannerContainer.addEventListener("click", () => capturePhoto(true));
 </script>
-
-
 {% endblock %}

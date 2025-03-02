@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+    <h1>Admin Dashboard - Select a Month</h1>
+    <ul>
+        {% for year, month in available_months %}
+            <li><a href="{{ url_for('admin_dashboard', year=year, month=month) }}">{{ month_names[month|int] }} {{ year }}</a></li>
+        {% endfor %}
+    </ul>
+{% endblock %}

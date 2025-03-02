@@ -5,11 +5,10 @@
 {% block content %}
 <div class="d-flex flex-column justify-content-center align-items-center vh-100 text-center">
     <h1 class="mb-4">Welcome to Food Logger</h1>
-    <p class="lead mb-4">Log your food intake easily by scanning barcodes or manually entering details.</p>
-
-    <div>
-        <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg mb-3 w-100" style="max-width: 300px;">Login</a>
-        <a href="{{ url_for('register') }}" class="btn btn-secondary btn-lg w-100" style="max-width: 300px;">Register</a>
+    <p class="lead mb-4">Track your food intake effortlessly by scanning barcodes or entering details manually.</p>
+    <div class="d-grid gap-3" style="max-width: 300px;">
+        <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg">Login</a>
+        <a href="{{ url_for('register') }}" class="btn btn-outline-primary btn-lg">Register</a>
     </div>
 </div>
 {% endblock %}
