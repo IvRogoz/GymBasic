@@ -19,8 +19,8 @@
     <div class="tab-pane fade show active" id="scan">
         <div class="card p-4">
             <h3>Scan or Capture</h3>
-            <div id="scanner-container" class="mb-3 position-relative">
-                <video id="scanner-video" autoplay playsinline muted style="width: 100%; height: 100%; object-fit: cover;"></video>
+            <!-- Removed the manual video element – Quagga will insert its own video -->
+            <div id="scanner-container" class="mb-3 position-relative" style="width: 100%; height: 480px;">
                 <canvas id="scanner-canvas" style="display: none;"></canvas>
                 <div class="overlay-text text-center w-100 position-absolute top-50 translate-middle-y text-white" style="background: rgba(0,0,0,0.5); padding: 10px;">
                     Scanning for barcodes... Tap to capture photo manually
@@ -100,48 +100,21 @@
     </table>
 </div>
 
+<!-- Include Quagga and initialize scanner -->
 <script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
 <script>
     const scannerContainer = document.getElementById("scanner-container");
-    const video = document.getElementById("scanner-video");
     const canvas = document.getElementById("scanner-canvas");
     const ctx = canvas.getContext("2d");
     const resultDisplay = document.getElementById("barcode-result");
     const productDetailsDisplay = document.getElementById("scanned-product-details");
     let isProcessing = false;
 
-    function setupCamera() {
-        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            alert("Your browser does not support camera access.");
-            return;
-        }
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } } })
-            .then(stream => {
-                video.srcObject = stream;
-                video.play();
-                video.addEventListener('loadedmetadata', () => {
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    console.log("Camera initialized. Dimensions:", video.videoWidth, video.videoHeight);
-                    startScanner();
-                });
-            })
-            .catch(err => {
-                console.error("Camera error:", err.name, err.message);
-                alert("Failed to access camera: " + (err.name === "NotAllowedError" ? "Permission denied." : err.message));
-            });
-    }
-
-    function stopCamera() {
-        if (video.srcObject) {
-            video.srcObject.getTracks().forEach(track => track.stop());
-            video.srcObject = null;
-        }
-        Quagga.stop();
-    }
-
+    // Capture photo from the live video stream provided by Quagga.
     function capturePhoto(manual = false, barcode = null) {
-        if (!video.srcObject || isProcessing) return;
+        // Get the video element that Quagga inserts into the container.
+        const video = scannerContainer.querySelector("video");
+        if (!video || isProcessing) return;
         isProcessing = true;
         console.log("Capturing photo. Manual:", manual, "Barcode:", barcode);
         canvas.width = video.videoWidth;
@@ -157,43 +130,43 @@
                 method: "POST",
                 body: formData
             })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP error! Status: ${response.status}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log("Server response:", data);
-                    if (data.error) {
-                        resultDisplay.textContent = data.error;
-                    } else if (manual) {
-                        resultDisplay.textContent = "Photo captured successfully!";
-                        productDetailsDisplay.innerHTML = `<img src="${data.photo_url}" alt="Captured Photo" class="img-fluid" style="max-width: 200px;">`;
-                    } else {
-                        resultDisplay.textContent = `Detected Barcode: ${barcode}`;
-                        productDetailsDisplay.innerHTML = `
-                            <h4>Scanned Product Details</h4>
-                            <p><strong>Product Name:</strong> ${data.product_name || "N/A"}</p>
-                            <p><strong>Ingredients:</strong> ${data.ingredients || "N/A"}</p>
-                            <p><strong>Nutrition (Per 100g):</strong></p>
-                            <ul>
-                                <li><strong>Energy:</strong> ${data.nutrition.energy_100g || "N/A"} kJ</li>
-                                <li><strong>Carbs:</strong> ${data.nutrition.carbohydrates_100g || "N/A"} g</li>
-                                <li><strong>Sugars:</strong> ${data.nutrition.sugars_100g || "N/A"} g</li>
-                                <li><strong>Fat:</strong> ${data.nutrition.fat_100g || "N/A"} g</li>
-                                <li><strong>Proteins:</strong> ${data.nutrition.proteins_100g || "N/A"} g</li>
-                                <li><strong>Salt:</strong> ${data.nutrition.salt_100g || "N/A"} g</li>
-                            </ul>
-                            <img src="${data.photo_url}" alt="Captured Photo" class="img-fluid" style="max-width: 200px;">`;
-                    }
-                    isProcessing = false;
-                })
-                .catch(err => {
-                    console.error("Fetch error:", err);
-                    resultDisplay.textContent = "Error processing request";
-                    isProcessing = false;
-                });
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Server response:", data);
+                if (data.error) {
+                    resultDisplay.textContent = data.error;
+                } else if (manual) {
+                    resultDisplay.textContent = "Photo captured successfully!";
+                    productDetailsDisplay.innerHTML = `<img src="${data.photo_url}" alt="Captured Photo" class="img-fluid" style="max-width: 200px;">`;
+                } else {
+                    resultDisplay.textContent = `Detected Barcode: ${barcode}`;
+                    productDetailsDisplay.innerHTML = `
+                        <h4>Scanned Product Details</h4>
+                        <p><strong>Product Name:</strong> ${data.product_name || "N/A"}</p>
+                        <p><strong>Ingredients:</strong> ${data.ingredients || "N/A"}</p>
+                        <p><strong>Nutrition (Per 100g):</strong></p>
+                        <ul>
+                            <li><strong>Energy:</strong> ${data.nutrition.energy_100g || "N/A"} kJ</li>
+                            <li><strong>Carbs:</strong> ${data.nutrition.carbohydrates_100g || "N/A"} g</li>
+                            <li><strong>Sugars:</strong> ${data.nutrition.sugars_100g || "N/A"} g</li>
+                            <li><strong>Fat:</strong> ${data.nutrition.fat_100g || "N/A"} g</li>
+                            <li><strong>Proteins:</strong> ${data.nutrition.proteins_100g || "N/A"} g</li>
+                            <li><strong>Salt:</strong> ${data.nutrition.salt_100g || "N/A"} g</li>
+                        </ul>
+                        <img src="${data.photo_url}" alt="Captured Photo" class="img-fluid" style="max-width: 200px;">`;
+                }
+                isProcessing = false;
+            })
+            .catch(err => {
+                console.error("Fetch error:", err);
+                resultDisplay.textContent = "Error processing request";
+                isProcessing = false;
+            });
         }, "image/jpeg", 0.85);
     }
 
@@ -201,7 +174,7 @@
         Quagga.init({
             inputStream: {
                 type: "LiveStream",
-                target: video,
+                target: scannerContainer,
                 constraints: { facingMode: "environment", width: 640, height: 480 }
             },
             decoder: { readers: ["ean_reader"] }
@@ -209,7 +182,6 @@
             if (err) {
                 console.error("Quagga init failed:", err);
                 alert("Scanner initialization failed: " + err.message);
-                stopCamera();
                 return;
             }
             Quagga.start();
@@ -229,7 +201,9 @@
         });
     }
 
-    window.addEventListener("load", setupCamera);
+    // Start Quagga on page load.
+    window.addEventListener("load", startScanner);
+    // Allow manual capture on container click.
     scannerContainer.addEventListener("click", () => capturePhoto(true));
 </script>
 {% endblock %}
