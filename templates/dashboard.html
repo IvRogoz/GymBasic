@@ -19,7 +19,7 @@
     <div class="tab-pane fade show active" id="scan">
         <div class="card p-4">
             <h3>Scan or Capture</h3>
-            <!-- Removed the manual video element – Quagga will insert its own video -->
+            <!-- Quagga will insert its own video element -->
             <div id="scanner-container" class="mb-3 position-relative" style="width: 100%; height: 480px;">
                 <canvas id="scanner-canvas" style="display: none;"></canvas>
                 <div class="overlay-text text-center w-100 position-absolute top-50 translate-middle-y text-white" style="background: rgba(0,0,0,0.5); padding: 10px;">
@@ -109,22 +109,22 @@
     const resultDisplay = document.getElementById("barcode-result");
     const productDetailsDisplay = document.getElementById("scanned-product-details");
     let isProcessing = false;
+    let lastDetectedBarcode = null;
 
     // Capture photo from the live video stream provided by Quagga.
-    function capturePhoto(manual = false, barcode = null) {
-        // Get the video element that Quagga inserts into the container.
+    function capturePhoto(manual = false) {
         const video = scannerContainer.querySelector("video");
         if (!video || isProcessing) return;
         isProcessing = true;
-        console.log("Capturing photo. Manual:", manual, "Barcode:", barcode);
+        console.log("Capturing photo. Manual:", manual);
         canvas.width = video.videoWidth;
         canvas.height = video.videoHeight;
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         canvas.toBlob(blob => {
             const formData = new FormData();
-            formData.append("photo", blob, barcode ? `barcode_${barcode}.jpg` : "manual.jpg");
-            if (barcode && !manual) {
-                formData.append("barcode", barcode);
+            formData.append("photo", blob, lastDetectedBarcode ? `barcode_${lastDetectedBarcode}.jpg` : "manual.jpg");
+            if (lastDetectedBarcode && !manual) {
+                formData.append("barcode", lastDetectedBarcode);
             }
             fetch("/scan", {
                 method: "POST",
@@ -144,7 +144,7 @@
                     resultDisplay.textContent = "Photo captured successfully!";
                     productDetailsDisplay.innerHTML = `<img src="${data.photo_url}" alt="Captured Photo" class="img-fluid" style="max-width: 200px;">`;
                 } else {
-                    resultDisplay.textContent = `Detected Barcode: ${barcode}`;
+                    resultDisplay.textContent = `Detected Barcode: ${lastDetectedBarcode}`;
                     productDetailsDisplay.innerHTML = `
                         <h4>Scanned Product Details</h4>
                         <p><strong>Product Name:</strong> ${data.product_name || "N/A"}</p>
@@ -177,7 +177,8 @@
                 target: scannerContainer,
                 constraints: { facingMode: "environment", width: 640, height: 480 }
             },
-            decoder: { readers: ["ean_reader"] }
+            decoder: { readers: ["ean_reader"] },
+            locate: true
         }, err => {
             if (err) {
                 console.error("Quagga init failed:", err);
@@ -187,23 +188,48 @@
             Quagga.start();
         });
 
+        // Process each frame and draw only the largest candidate box.
+        Quagga.onProcessed(result => {
+            const drawingCtx = Quagga.canvas.ctx.overlay;
+            const drawingCanvas = Quagga.canvas.dom.overlay;
+            if (result) {
+                drawingCtx.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+                let largestBox = null;
+                let maxArea = 0;
+                if (result.boxes && result.boxes.length > 0) {
+                    result.boxes.forEach(box => {
+                        if (box) {
+                            let area = 0;
+                            // Calculate area using the shoelace formula
+                            for (let i = 0; i < box.length; i++) {
+                                const j = (i + 1) % box.length;
+                                area += box[i].x * box[j].y - box[j].x * box[i].y;
+                            }
+                            area = Math.abs(area / 2);
+                            if (area > maxArea) {
+                                maxArea = area;
+                                largestBox = box;
+                            }
+                        }
+                    });
+                }
+                if (largestBox) {
+                    // Draw the bounding box for the largest candidate in green.
+                    Quagga.ImageDebug.drawPath(largestBox, { x: 0, y: 1 }, drawingCtx, { color: "green", lineWidth: 3 });
+                }
+            }
+        });
+
+        // When a barcode is detected, update the display without automatic capture.
         Quagga.onDetected(data => {
             const barcode = data.codeResult.code;
-            if (!isProcessing) {
-                console.log("Barcode detected:", barcode);
-                capturePhoto(false, barcode);
-                Quagga.pause();
-                setTimeout(() => {
-                    console.log("Resuming scanner");
-                    Quagga.start();
-                }, 2000);
-            }
+            lastDetectedBarcode = barcode;
+            console.log("Barcode detected:", barcode);
+            resultDisplay.textContent = `Detected Barcode: ${barcode}`;
         });
     }
 
-    // Start Quagga on page load.
     window.addEventListener("load", startScanner);
-    // Allow manual capture on container click.
     scannerContainer.addEventListener("click", () => capturePhoto(true));
 </script>
 {% endblock %}
