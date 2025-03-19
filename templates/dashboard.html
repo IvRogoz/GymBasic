@@ -35,7 +35,8 @@
     <div class="tab-pane fade" id="manual">
         <div class="card p-4">
             <h3>Enter Food Details Manually</h3>
-            <form method="POST" action="{{ url_for('manual_entry') }}" enctype="multipart/form-data">
+            <!-- Changed only the url_for call -->
+            <form method="POST" action="{{ url_for('scan.manual_entry') }}" enctype="multipart/form-data">
                 <div class="mb-3">
                     <label for="name" class="form-label">Food Name</label>
                     <input type="text" id="name" name="name" class="form-control" required>
@@ -89,7 +90,8 @@
                 </td>
                 <td>
                     {% if scan.picture_path %}
-                        <img src="{{ url_for('uploaded_file', filename=scan.picture_path) }}" alt="Photo" class="img-thumbnail" style="max-width: 100px;">
+                        <!-- Changed only the url_for call -->
+                        <img src="{{ url_for('main.uploaded_file', filename=scan.picture_path) }}" alt="Photo" class="img-thumbnail" style="max-width: 100px;">
                     {% else %}
                         N/A
                     {% endif %}

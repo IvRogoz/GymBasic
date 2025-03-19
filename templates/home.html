@@ -7,8 +7,9 @@
     <h1 class="mb-4">Welcome to Food Logger</h1>
     <p class="lead mb-4">Track your food intake effortlessly by scanning barcodes or entering details manually.</p>
     <div class="d-grid gap-3" style="max-width: 300px;">
-        <a href="{{ url_for('login') }}" class="btn btn-primary btn-lg">Login</a>
-        <a href="{{ url_for('register') }}" class="btn btn-outline-primary btn-lg">Register</a>
+        <!-- Changed only the url_for call -->
+        <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-lg">Login</a>
+        <a href="{{ url_for('auth.register') }}" class="btn btn-outline-primary btn-lg">Register</a>
     </div>
 </div>
 {% endblock %}

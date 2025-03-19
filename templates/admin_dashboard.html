@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
     <h1>Admin Dashboard - {{ month_name }} {{ year }}</h1>
-    <a href="{{ url_for('admin_dashboard') }}">Back to Month Selection</a>
+    <!-- Changed only the url_for call for Back to Month Selection -->
+    <a href="{{ url_for('admin.admin_dashboard_months') }}">Back to Month Selection</a>
     <form method="GET">
         <input type="text" name="search" value="{{ search or '' }}" placeholder="Search by username">
         <input type="hidden" name="year" value="{{ year }}">
@@ -39,13 +40,15 @@
                     </td>
                     <td>
                         {% if log.picture_path %}
-                            <img src="{{ url_for('uploaded_file', filename=log.picture_path.split('/')[-1]) }}" alt="Picture" style="max-width: 100px;">
+                            <!-- Changed only the url_for call -->
+                            <img src="{{ url_for('main.uploaded_file', filename=log.picture_path.split('/')[-1]) }}" alt="Picture" style="max-width: 100px;">
                         {% else %}
                             N/A
                         {% endif %}
                     </td>
                     <td>
-                        <form method="POST" action="{{ url_for('delete_log', log_id=log.id) }}">
+                        <!-- Changed only the url_for call -->
+                        <form method="POST" action="{{ url_for('admin.delete_log', log_id=log.id) }}">
                             <button type="submit" onclick="return confirm('Are you sure?')">Delete</button>
                         </form>
                     </td>
@@ -55,17 +58,18 @@
     </table>
     <div>
         {% if pagination.has_prev %}
-            <a href="{{ url_for('admin_dashboard', page=pagination.prev_num, year=year, month=month, search=search, sort_by=sort_by, sort_order=sort_order) }}">Previous</a>
+            <!-- Changed only the url_for call -->
+            <a href="{{ url_for('admin.admin_dashboard', page=pagination.prev_num, year=year, month=month, search=search, sort_by=sort_by, sort_order=sort_order) }}">Previous</a>
         {% endif %}
         {% for page_num in pagination.iter_pages() %}
             {% if page_num %}
-                <a href="{{ url_for('admin_dashboard', page=page_num, year=year, month=month, search=search, sort_by=sort_by, sort_order=sort_order) }}">{{ page_num }}</a>
+                <a href="{{ url_for('admin.admin_dashboard', page=page_num, year=year, month=month, search=search, sort_by=sort_by, sort_order=sort_order) }}">{{ page_num }}</a>
             {% else %}
                 ...
             {% endif %}
         {% endfor %}
         {% if pagination.has_next %}
-            <a href="{{ url_for('admin_dashboard', page=pagination.next_num, year=year, month=month, search=search, sort_by=sort_by, sort_order=sort_order) }}">Next</a>
+            <a href="{{ url_for('admin.admin_dashboard', page=pagination.next_num, year=year, month=month, search=search, sort_by=sort_by, sort_order=sort_order) }}">Next</a>
         {% endif %}
     </div>
 {% endblock %}

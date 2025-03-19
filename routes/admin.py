@@ -1,14 +1,24 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, current_app
+# routes/admin.py
+from flask import Blueprint, render_template, redirect, url_for, request, flash
 from flask_login import login_required, current_user
-from app import db
-from app.models import User, UserScans
-from app.utils import superuser_required
-import calendar, json
+from functools import wraps
+from models import db, User, UserScans
 from sqlalchemy import func
+import calendar
+import json
 
-admin = Blueprint('admin', __name__)
+admin_bp = Blueprint('admin', __name__)
 
-@admin.route('/dashboard')
+def superuser_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated or not current_user.is_superuser:
+            flash('You do not have permission to access this page.', 'danger')
+            return redirect(url_for('main.home'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+@admin_bp.route('/admin_dashboard')
 @login_required
 @superuser_required
 def admin_dashboard():
@@ -67,21 +77,21 @@ def admin_dashboard():
             func.strftime('%Y', UserScans.timestamp).label('year'),
             func.strftime('%m', UserScans.timestamp).label('month')
         ).distinct().order_by('year', 'month').all()
-        return render_template('admin_dashboard_months.html', 
-                               available_months=available_months, 
-                               month_names=month_names)
+        return render_template('admin_dashboard_months.html',
+                              available_months=available_months,
+                              month_names=month_names)
 
-    return render_template('admin_dashboard.html', 
-                           logs=logs, 
-                           pagination=pagination, 
-                           year=year, 
-                           month=month, 
-                           month_name=month_names[month_int], 
-                           search=search, 
-                           sort_by=sort_by, 
-                           sort_order=sort_order)
+    return render_template('admin_dashboard.html',
+                          logs=logs,
+                          pagination=pagination,
+                          year=year,
+                          month=month,
+                          month_name=month_names[month_int],
+                          search=search,
+                          sort_by=sort_by,
+                          sort_order=sort_order)
 
-@admin.route('/delete_log/<int:log_id>', methods=['POST'])
+@admin_bp.route('/delete_log/<int:log_id>', methods=['POST'])
 @login_required
 @superuser_required
 def delete_log(log_id):
